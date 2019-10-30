@@ -11,7 +11,6 @@ import (
 )
 
 type handler struct {
-	slackClient       *slack.Client
 	verificationToken string
 }
 
@@ -19,8 +18,8 @@ type Handler interface {
 	Handle(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error)
 }
 
-func NewHandler(client *slack.Client, token string) Handler {
-	return &handler{client, token}
+func NewHandler(token string) Handler {
+	return &handler{token}
 }
 
 var (
