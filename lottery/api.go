@@ -7,30 +7,29 @@ import (
 	"github.com/nlopes/slack"
 )
 
-func getOneUserFromChannel(channelID string) (string, error) {
-	params := slack.GetUsersInConversationParameters{ChannelID: channelID}
-	memberIDs, _, err := api.GetUsersInConversation(&params)
-	if err != nil {
-		return "", err
-	}
-	rand.Seed(time.Now().UnixNano())
-	memberID := memberIDs[rand.Intn(len(memberIDs)-1)]
-	// member, err := api.GetUserInfo(memberID)
-	return memberID, err
+func postResultMessage(bot *slack.Client, channel string, text string) error {
+	_, _, err := bot.PostMessage(channel, slack.MsgOptionText(text, false))
+	return err
 }
 
-func getGroups() ([]slack.Group, error) {
-	groups, err := api.GetGroups(true)
+func getUsersFromChannel(bot *slack.Client, channelID string) ([]string, error) {
+	params := slack.GetUsersInConversationParameters{ChannelID: channelID}
+	userIDs, _, err := bot.GetUsersInConversation(&params)
+	return userIDs, err
+}
+
+func getUserGroups(bot *slack.Client) ([]slack.UserGroup, error) {
+	groups, err := bot.GetUserGroups()
 	return groups, err
 }
 
-func getOneUserFromGroup(groupID string) (string, error) {
-	memberIDs, err := api.GetUserGroupMembers(groupID)
-	if err != nil {
-		return "", err
-	}
+func getUsersFromUserGroup(bot *slack.Client, groupID string) ([]string, error) {
+	userIDs, err := bot.GetUserGroupMembers(groupID)
+	return userIDs, err
+}
+
+func lotteryOneUserFromUsers(userIDs []string) string {
 	rand.Seed(time.Now().UnixNano())
-	memberID := memberIDs[rand.Intn(len(memberIDs)-1)]
-	// member, err := api.GetUserInfo(memberID)
-	return memberID, err
+	userID := userIDs[rand.Intn(len(userIDs)-1)]
+	return userID
 }

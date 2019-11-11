@@ -2,76 +2,119 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
-	"os"
+	"net/url"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/nlopes/slack"
-	"github.com/nlopes/slack/slackevents"
 )
 
 type handler struct {
 	verificationToken string
+	bot               *slack.Client
 }
 
 type Handler interface {
 	Handle(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error)
 }
 
-func NewHandler(token string) Handler {
-	return &handler{token}
+func NewHandler(verificationToken string, botToken string) Handler {
+	return &handler{verificationToken, slack.New(botToken)}
 }
-
-var (
-	verificationToken = os.Getenv("VERIFICATION_TOKEN")
-	api               = slack.New(os.Getenv("BOT_TOKEN"))
-)
 
 func (h *handler) Handle(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	reqBody := request.Body
-	eventsAPIEvent, err := slackevents.ParseEvent(
-		json.RawMessage(reqBody),
-		slackevents.OptionVerifyToken(&slackevents.TokenComparator{VerificationToken: verificationToken}),
-	)
+
+	message := new(slack.InteractionCallback)
+	jsonStr, err := url.QueryUnescape(reqBody[8:])
 	if err != nil {
-		log.Print(err)
+		log.Printf("failed to unespace request body: %s", err)
 		return events.APIGatewayProxyResponse{}, err
 	}
 
-	log.Print(eventsAPIEvent.Type)
-	if eventsAPIEvent.Type == slackevents.URLVerification {
-		var r *slackevents.ChallengeResponse
-		err := json.Unmarshal([]byte(reqBody), &r)
+	if err := json.Unmarshal([]byte(jsonStr), message); err != nil {
+		log.Printf("failed to decode json message from slack: %s", jsonStr)
+		return events.APIGatewayProxyResponse{}, err
+	}
+
+	if message.Token != h.verificationToken {
+		log.Printf("invalid token: %s", message.Token)
+		return events.APIGatewayProxyResponse{}, errors.New("invalid token")
+	}
+
+	action := message.ActionCallback.AttachmentActions[0]
+	switch action.Name {
+	case "select":
+		log.Print("select action")
+		err := h.lottery(action.Value, message.Channel.ID)
 		if err != nil {
 			log.Print(err)
 			return events.APIGatewayProxyResponse{}, err
 		}
+
+		originalMessage := message.OriginalMessage
+		jsonBody, err := responseMessage(&originalMessage, ":ok:", "")
+		if err != nil {
+			log.Print(err)
+			return events.APIGatewayProxyResponse{}, err
+		}
+
 		return events.APIGatewayProxyResponse{
 			StatusCode: 200,
-			Body:       r.Challenge,
+			Body:       string(jsonBody),
+		}, nil
+
+	case "cancel":
+		originalMessage := message.OriginalMessage
+		jsonBody, err := responseMessage(&originalMessage, "キャンセルしました", "")
+		if err != nil {
+			log.Print(err)
+			return events.APIGatewayProxyResponse{}, err
+		}
+
+		return events.APIGatewayProxyResponse{
+			StatusCode: 200,
+			Body:       string(jsonBody),
+		}, nil
+
+	default:
+		return events.APIGatewayProxyResponse{
+			StatusCode: 400,
+			Body:       "Bad Request",
 		}, nil
 	}
+}
 
-	if eventsAPIEvent.Type == slackevents.CallbackEvent {
-		innerEvent := eventsAPIEvent.InnerEvent
-		log.Print(innerEvent.Type)
-		switch ev := innerEvent.Data.(type) {
-		case *slackevents.AppMentionEvent:
-			memberID, err := getOneUserFromChannel(ev.Channel)
-			if err != nil {
-				log.Print(err)
-				return events.APIGatewayProxyResponse{}, err
-			}
-			api.PostMessage(ev.Channel, slack.MsgOptionText("<@"+memberID+"> が当選しました", false))
-			return events.APIGatewayProxyResponse{
-				StatusCode: 200,
-			}, nil
-		default:
-			log.Print(ev)
-		}
+func (h *handler) lottery(actionValue string, channelID string) error {
+	var userIDs []string
+	var err error
+
+	if actionValue == "channel" {
+		userIDs, err = getUsersFromChannel(h.bot, channelID)
+	} else {
+		userIDs, err = getUsersFromUserGroup(h.bot, actionValue)
 	}
-	return events.APIGatewayProxyResponse{
-		StatusCode: 400,
-		Body:       "Bad Request",
-	}, nil
+
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	userID := lotteryOneUserFromUsers(userIDs)
+	return postResultMessage(h.bot, channelID, "<@"+userID+"> が当選しました")
+}
+
+func responseMessage(original *slack.Message, titie, value string) ([]byte, error) {
+	original.ReplaceOriginal = true
+	original.Attachments[0].Actions = []slack.AttachmentAction{}
+	original.Attachments[0].Fields = []slack.AttachmentField{
+		{
+			Title: titie,
+			Value: value,
+			Short: false,
+		},
+	}
+	jsonBody, err := json.Marshal(original)
+	return jsonBody, err
 }

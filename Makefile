@@ -4,9 +4,11 @@ deps:
 	go get -u ./...
 
 clean:
+	rm -rf ./select/select
 	rm -rf ./lottery/lottery
 
 build:
+	GOOS=linux GOARCH=amd64 go build -o select/select ./select
 	GOOS=linux GOARCH=amd64 go build -o lottery/lottery ./lottery
 
 export:
