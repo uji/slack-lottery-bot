@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"math/rand"
 	"net/url"
+	"slack-lottery-bot/adaptor"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/nlopes/slack"
@@ -12,7 +15,7 @@ import (
 
 type handler struct {
 	verificationToken string
-	bot               *slack.Client
+	api               adaptor.API
 }
 
 type Handler interface {
@@ -20,7 +23,7 @@ type Handler interface {
 }
 
 func NewHandler(verificationToken string, botToken string) Handler {
-	return &handler{verificationToken, slack.New(botToken)}
+	return &handler{verificationToken, adaptor.NewAPI(botToken)}
 }
 
 func (h *handler) Handle(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -91,9 +94,9 @@ func (h *handler) lottery(actionValue string, channelID string) error {
 	var err error
 
 	if actionValue == "channel" {
-		userIDs, err = getUsersFromChannel(h.bot, channelID)
+		userIDs, err = h.api.GetUsersFromChannel(channelID)
 	} else {
-		userIDs, err = getUsersFromUserGroup(h.bot, actionValue)
+		userIDs, err = h.api.GetUsersFromUserGroup(actionValue)
 	}
 
 	if err != nil {
@@ -102,7 +105,7 @@ func (h *handler) lottery(actionValue string, channelID string) error {
 	}
 
 	userID := lotteryOneUserFromUsers(userIDs)
-	return postResultMessage(h.bot, channelID, "<@"+userID+"> が当選しました")
+	return h.api.PostMessage(channelID, "<@"+userID+"> が当選しました")
 }
 
 func responseMessage(original *slack.Message, titie, value string) ([]byte, error) {
@@ -117,4 +120,10 @@ func responseMessage(original *slack.Message, titie, value string) ([]byte, erro
 	}
 	jsonBody, err := json.Marshal(original)
 	return jsonBody, err
+}
+
+func lotteryOneUserFromUsers(userIDs []string) string {
+	rand.Seed(time.Now().UnixNano())
+	userID := userIDs[rand.Intn(len(userIDs)-1)]
+	return userID
 }
