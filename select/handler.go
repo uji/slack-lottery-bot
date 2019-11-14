@@ -19,8 +19,8 @@ type Handler interface {
 	Handle(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error)
 }
 
-func NewHandler(verificationToken string, botToken string) Handler {
-	return &handler{verificationToken, adaptor.NewAPI(botToken)}
+func NewHandler(verificationToken string, botToken string, oauthToken string) Handler {
+	return &handler{verificationToken, adaptor.NewAPI(botToken, oauthToken)}
 }
 
 func (h *handler) Handle(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -80,7 +80,7 @@ func (h *handler) selectActionOptions() []slack.AttachmentActionOption {
 	groups, err := h.api.GetUserGroups()
 	if err != nil {
 		log.Print(err)
-		return nil
+		return options
 	}
 	for _, group := range groups {
 		options = append(options, slack.AttachmentActionOption{

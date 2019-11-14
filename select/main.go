@@ -9,7 +9,8 @@ import (
 func main() {
 	verificationToken := os.Getenv("VERIFICATION_TOKEN")
 	botToken := os.Getenv("BOT_TOKEN")
+	oauthToken := os.Getenv("OAUTH_TOKEN")
 
-	handler := NewHandler(verificationToken, botToken)
+	handler := NewHandler(verificationToken, botToken, oauthToken)
 	lambda.Start(handler.Handle)
 }

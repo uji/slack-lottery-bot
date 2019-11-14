@@ -5,7 +5,8 @@ import (
 )
 
 type api struct {
-	bot *slack.Client
+	bot   *slack.Client
+	oauth *slack.Client
 }
 
 type API interface {
@@ -16,8 +17,8 @@ type API interface {
 	GetUsersFromUserGroup(groupID string) ([]string, error)
 }
 
-func NewAPI(token string) API {
-	return &api{slack.New(token)}
+func NewAPI(botToken string, oauthToken string) API {
+	return &api{slack.New(botToken), slack.New(oauthToken)}
 }
 
 func (a *api) PostMessage(channel string, text string) error {
@@ -37,11 +38,11 @@ func (a *api) GetUsersFromChannel(channelID string) ([]string, error) {
 }
 
 func (a *api) GetUserGroups() ([]slack.UserGroup, error) {
-	groups, err := a.bot.GetUserGroups()
+	groups, err := a.oauth.GetUserGroups()
 	return groups, err
 }
 
 func (a *api) GetUsersFromUserGroup(groupID string) ([]string, error) {
-	userIDs, err := a.bot.GetUserGroupMembers(groupID)
+	userIDs, err := a.oauth.GetUserGroupMembers(groupID)
 	return userIDs, err
 }

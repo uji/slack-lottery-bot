@@ -22,8 +22,8 @@ type Handler interface {
 	Handle(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error)
 }
 
-func NewHandler(verificationToken string, botToken string) Handler {
-	return &handler{verificationToken, adaptor.NewAPI(botToken)}
+func NewHandler(verificationToken string, botToken string, oauthToken string) Handler {
+	return &handler{verificationToken, adaptor.NewAPI(botToken, oauthToken)}
 }
 
 func (h *handler) Handle(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -50,7 +50,7 @@ func (h *handler) Handle(request events.APIGatewayProxyRequest) (events.APIGatew
 	switch action.Name {
 	case "select":
 		log.Print("select action")
-		err := h.lottery(action.Value, message.Channel.ID)
+		err := h.lottery(action.SelectedOptions[0].Value, message.Channel.ID)
 		if err != nil {
 			log.Print(err)
 			return events.APIGatewayProxyResponse{}, err
@@ -93,6 +93,7 @@ func (h *handler) lottery(actionValue string, channelID string) error {
 	var userIDs []string
 	var err error
 
+	log.Printf("value: %s", actionValue)
 	if actionValue == "channel" {
 		userIDs, err = h.api.GetUsersFromChannel(channelID)
 	} else {
