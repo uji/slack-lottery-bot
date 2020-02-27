@@ -125,6 +125,6 @@ func responseMessage(original *slack.Message, titie, value string) ([]byte, erro
 
 func lotteryOneUserFromUsers(userIDs []string) string {
 	rand.Seed(time.Now().UnixNano())
-	userID := userIDs[rand.Intn(len(userIDs)-1)]
+	userID := userIDs[rand.Intn(len(userIDs))]
 	return userID
 }
