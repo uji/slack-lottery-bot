@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"testing"
 )
 
@@ -32,7 +33,7 @@ func Test_lotteryOneUserFromUsers(t *testing.T) {
 	fmt.Printf("ID: count\n")
 	for k, v := range counts {
 		per = float64(v) / float64(loopCnt)
-		errRate = expectPer - per
+		errRate = math.Abs(expectPer - per)
 		fmt.Printf("%s: %d ", k, v)
 
 		fmt.Printf("%v per \n", per*100.0)
