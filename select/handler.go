@@ -6,8 +6,8 @@ import (
 	"slack-lottery-bot/adaptor"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/nlopes/slack"
-	"github.com/nlopes/slack/slackevents"
+	"github.com/slack-go/slack"
+	"github.com/slack-go/slack/slackevents"
 )
 
 type handler struct {

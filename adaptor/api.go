@@ -1,7 +1,7 @@
 package adaptor
 
 import (
-	"github.com/nlopes/slack"
+	"github.com/slack-go/slack"
 )
 
 type api struct {

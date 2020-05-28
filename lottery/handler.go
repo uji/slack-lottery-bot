@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/nlopes/slack"
+	"github.com/slack-go/slack"
 )
 
 type handler struct {
