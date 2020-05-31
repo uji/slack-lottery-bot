@@ -18,4 +18,8 @@ package:
 	sam package --template-file template.yaml --output-template-file output-template.yaml --s3-bucket slack-lottery-bot
 
 deploy:
-	sam deploy --template-file output-template.yaml --stack-name slack-lottery-bot --capabilities CAPABILITY_IAM
+	make package
+	sam deploy --template-file output-template.yaml --stack-name slack-lottery-bot --capabilities CAPABILITY_IAM \
+	--parameter-overrides "ParameterKey=VERIFICATIONTOKEN,ParameterValue=$(VERIFICATION_TOKEN) \
+	ParameterKey=BOTTOKEN,ParameterValue=$(BOT_TOKEN) \
+	ParameterKey=OAUTHTOKEN,ParameterValue=$(OAUTH_TOKEN)"

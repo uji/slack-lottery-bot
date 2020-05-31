@@ -26,9 +26,9 @@ Resources:
             Method: POST
       Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
         Variables:
-          VERIFICATION_TOKEN: ${VERIFICATION_TOKEN}# slack verification token
-          BOT_TOKEN: ${BOT_TOKEN} # slack bot token
-          OAUTH_TOKEN: ${OAUTH_TOKEN}
+          VERIFICATIONTOKEN: !Ref VERIFICATIONTOKEN # slack verification token
+          BOTTOKEN: !Ref BOTTOKEN # slack bot token
+          OAUTHTOKEN: !Ref OAUTHTOKEN
   LotteryFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
@@ -44,9 +44,16 @@ Resources:
             Method: POST
       Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
         Variables:
-          VERIFICATION_TOKEN: ${VERIFICATION_TOKEN}# slack verification token
-          BOT_TOKEN: ${BOT_TOKEN} # slack bot token
-          OAUTH_TOKEN: ${OAUTH_TOKEN}
+          VERIFICATIONTOKEN: !Ref VERIFICATIONTOKEN # slack verification token
+          BOTTOKEN: !Ref BOTTOKEN # slack bot token
+          OAUTHTOKEN: !Ref OAUTHTOKEN
+Parameters:
+  VERIFICATIONTOKEN:
+    Type: String
+  BOTTOKEN:
+    Type: String
+  OAUTHTOKEN:
+    Type: String
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function

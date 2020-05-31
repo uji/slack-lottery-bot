@@ -92,13 +92,38 @@ func (h *handler) selectActionOptions() []slack.AttachmentActionOption {
 }
 
 func postMsgParams(selectOptions []slack.AttachmentActionOption) slack.Attachment {
-	attachment := slack.Attachment{
-		Text:       "メニューを選んでください",
+	copt := []slack.AttachmentActionOption{
+		{
+			Text:  "1人",
+			Value: "1",
+		},
+		{
+			Text:  "2人",
+			Value: "2",
+		},
+		{
+			Text:  "3人",
+			Value: "3",
+		},
+		{
+			Text:  "4人",
+			Value: "4",
+		},
+	}
+	return slack.Attachment{
+		Text:       "抽選人数、抽選チームを選んでください\n(抽選人数が未入力の場合は1人抽選されます)",
 		Color:      "#f9a41b",
 		CallbackID: "select",
 		Actions: []slack.AttachmentAction{
 			{
+				Name:    "count",
+				Text:    "抽選人数",
+				Type:    "select",
+				Options: copt,
+			},
+			{
 				Name:    "select",
+				Text:    "抽選チーム",
 				Type:    "select",
 				Options: selectOptions,
 			},
@@ -110,6 +135,4 @@ func postMsgParams(selectOptions []slack.AttachmentActionOption) slack.Attachmen
 			},
 		},
 	}
-
-	return attachment
 }

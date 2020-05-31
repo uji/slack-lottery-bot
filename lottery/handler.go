@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net/url"
 	"slack-lottery-bot/adaptor"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -50,7 +51,7 @@ func (h *handler) Handle(request events.APIGatewayProxyRequest) (events.APIGatew
 	switch action.Name {
 	case "select":
 		log.Print("select action")
-		err := h.lottery(action.SelectedOptions[0].Value, message.Channel.ID)
+		err := h.lottery(action.SelectedOptions[0].Value, action.SelectedOptions[1].Value, message.Channel.ID)
 		if err != nil {
 			log.Print(err)
 			return events.APIGatewayProxyResponse{}, err
@@ -89,7 +90,7 @@ func (h *handler) Handle(request events.APIGatewayProxyRequest) (events.APIGatew
 	}
 }
 
-func (h *handler) lottery(actionValue string, channelID string) error {
+func (h *handler) lottery(actionValue string, countValue string, channelID string) error {
 	var userIDs []string
 	var err error
 
@@ -105,8 +106,18 @@ func (h *handler) lottery(actionValue string, channelID string) error {
 		return err
 	}
 
-	userID := lotteryOneUserFromUsers(userIDs)
-	return h.api.PostMessage(channelID, "<@"+userID+"> が当選しました")
+	c, err := strconv.Atoi(countValue)
+	if err != nil {
+		c = 1
+	}
+
+	lotteriedUids := lotteryOneUsersFromUsers(userIDs, c)
+	pMsg := ""
+	for _, uid := range lotteriedUids {
+		pMsg += "<@" + uid + ">\n"
+	}
+	pMsg += "が当選しました"
+	return h.api.PostMessage(channelID, pMsg)
 }
 
 func responseMessage(original *slack.Message, titie, value string) ([]byte, error) {
@@ -123,8 +134,12 @@ func responseMessage(original *slack.Message, titie, value string) ([]byte, erro
 	return jsonBody, err
 }
 
-func lotteryOneUserFromUsers(userIDs []string) string {
+func lotteryOneUsersFromUsers(userIDs []string, count int) []string {
 	rand.Seed(time.Now().UnixNano())
-	userID := userIDs[rand.Intn(len(userIDs))]
-	return userID
+	l := len(userIDs)
+	for i := l - 1; i >= 0; i-- {
+		j := rand.Intn(i + 1)
+		userIDs[i], userIDs[j] = userIDs[j], userIDs[i]
+	}
+	return userIDs[:count]
 }
