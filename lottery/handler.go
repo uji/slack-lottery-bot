@@ -51,7 +51,7 @@ func (h *handler) Handle(request events.APIGatewayProxyRequest) (events.APIGatew
 	switch action.Name {
 	case "select":
 		log.Print("select action")
-		err := h.lottery(action.SelectedOptions[0].Value, action.SelectedOptions[1].Value, message.Channel.ID)
+		err := h.lottery(action.SelectedOptions[1].Value, action.SelectedOptions[0].Value, message.Channel.ID)
 		if err != nil {
 			log.Print(err)
 			return events.APIGatewayProxyResponse{}, err
