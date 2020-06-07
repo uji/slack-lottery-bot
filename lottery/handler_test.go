@@ -19,7 +19,7 @@ func Test_lotteryOneUserFromUsers(t *testing.T) {
 	var i int
 	var userID string
 	for i < loopCnt {
-		userID = lotteryOneUserFromUsers(userIDs)
+		userID = lotteryUsersFromUsers(userIDs, 1)[0]
 		counts[userID]++
 		i++
 	}

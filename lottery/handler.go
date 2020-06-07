@@ -111,7 +111,7 @@ func (h *handler) lottery(actionValue string, countValue string, channelID strin
 		c = 1
 	}
 
-	lotteriedUids := lotteryOneUsersFromUsers(userIDs, c)
+	lotteriedUids := lotteryUsersFromUsers(userIDs, c)
 	pMsg := ""
 	for _, uid := range lotteriedUids {
 		pMsg += "<@" + uid + ">\n"
@@ -134,7 +134,7 @@ func responseMessage(original *slack.Message, titie, value string) ([]byte, erro
 	return jsonBody, err
 }
 
-func lotteryOneUsersFromUsers(userIDs []string, count int) []string {
+func lotteryUsersFromUsers(userIDs []string, count int) []string {
 	rand.Seed(time.Now().UnixNano())
 	l := len(userIDs)
 	for i := l - 1; i >= 0; i-- {
