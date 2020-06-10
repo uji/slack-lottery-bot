@@ -53,7 +53,7 @@ func (h *handler) Handle(request events.APIGatewayProxyRequest) (events.APIGatew
 		log.Print(innerEvent.Type)
 		switch ev := innerEvent.Data.(type) {
 		case *slackevents.AppMentionEvent:
-			msgOption := slack.MsgOptionAttachments(postMsgParams(h.selectActionOptions()))
+			msgOption := slack.MsgOptionAttachments(postMsgParams())
 			h.api.PostMessageWithOptions(ev.Channel, "ユーザーの抽選を始めます", msgOption)
 			return events.APIGatewayProxyResponse{
 				StatusCode: 200,
@@ -68,64 +68,16 @@ func (h *handler) Handle(request events.APIGatewayProxyRequest) (events.APIGatew
 	}, nil
 }
 
-func (h *handler) selectActionOptions() []slack.AttachmentActionOption {
-	options := []slack.AttachmentActionOption{
-		{
-			Text:  "このチャンネルのメンバーから",
-			Value: "channel",
-		},
-	}
-
-	// UserGroupから抽選するメニューを追加
-	groups, err := h.api.GetUserGroups()
-	if err != nil {
-		log.Print(err)
-		return options
-	}
-	for _, group := range groups {
-		options = append(options, slack.AttachmentActionOption{
-			Text:  group.Name,
-			Value: group.ID,
-		})
-	}
-	return options
-}
-
-func postMsgParams(selectOptions []slack.AttachmentActionOption) slack.Attachment {
-	copt := []slack.AttachmentActionOption{
-		{
-			Text:  "1人",
-			Value: "1",
-		},
-		{
-			Text:  "2人",
-			Value: "2",
-		},
-		{
-			Text:  "3人",
-			Value: "3",
-		},
-		{
-			Text:  "4人",
-			Value: "4",
-		},
-	}
+func postMsgParams() slack.Attachment {
 	return slack.Attachment{
-		Text:       "抽選人数、抽選チームを選んでください\n(抽選人数が未入力の場合は1人抽選されます)",
+		Text:       "モーダルで抽選方法を指定してください",
 		Color:      "#f9a41b",
-		CallbackID: "select",
+		CallbackID: "start",
 		Actions: []slack.AttachmentAction{
 			{
-				Name:    "count",
-				Text:    "抽選人数",
-				Type:    "select",
-				Options: copt,
-			},
-			{
-				Name:    "select",
-				Text:    "抽選チーム",
-				Type:    "select",
-				Options: selectOptions,
+				Name: "start",
+				Text: "Start!",
+				Type: "button",
 			},
 			{
 				Name:  "cancel",

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"slack-lottery-bot/adaptor"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -47,18 +48,41 @@ func (h *handler) Handle(request events.APIGatewayProxyRequest) (events.APIGatew
 		return events.APIGatewayProxyResponse{}, errors.New("invalid token")
 	}
 
+	if len(message.ActionCallback.AttachmentActions) == 0 {
+		view := new(slack.ViewResponse)
+		if err := json.Unmarshal([]byte(jsonStr), view); err != nil {
+			log.Printf("failed to decode json message from slack: %s", jsonStr)
+			return events.APIGatewayProxyResponse{}, err
+		}
+
+		values := view.State.Values
+		target := values["target"]["target"].SelectedOption.Value
+		count := values["count"]["count"].Value
+
+		log.Println("count, terget, callbackID: ", count, target, view.CallbackID)
+		err := h.lottery(target, count, view.CallbackID)
+		code := 200
+		if err != nil {
+			code = 400
+		}
+		return events.APIGatewayProxyResponse{
+			StatusCode: code,
+		}, err
+	}
+
 	action := message.ActionCallback.AttachmentActions[0]
 	switch action.Name {
-	case "select":
-		log.Print("select action")
-		err := h.lottery(action.SelectedOptions[1].Value, action.SelectedOptions[0].Value, message.Channel.ID)
+	case "start":
+		log.Print("start action")
+		originalMessage := message.OriginalMessage
+		jsonBody, err := responseMessage(&originalMessage, "抽選しました", "")
 		if err != nil {
 			log.Print(err)
 			return events.APIGatewayProxyResponse{}, err
 		}
 
-		originalMessage := message.OriginalMessage
-		jsonBody, err := responseMessage(&originalMessage, ":ok:", "")
+		log.Print("select start TriggerID: ", message.TriggerID)
+		err = h.api.OpenView(message.TriggerID, h.modalViewReqest(message.Channel.ID))
 		if err != nil {
 			log.Print(err)
 			return events.APIGatewayProxyResponse{}, err
@@ -90,19 +114,81 @@ func (h *handler) Handle(request events.APIGatewayProxyRequest) (events.APIGatew
 	}
 }
 
+func (h *handler) modalViewReqest(channelID string) slack.ModalViewRequest {
+	return slack.ModalViewRequest{
+		Type:       slack.VTModal,
+		CallbackID: channelID,
+		Title:      slack.NewTextBlockObject("plain_text", "Lottery Bot", false, false),
+		Close:      slack.NewTextBlockObject("plain_text", "Cancel", false, false),
+		Submit:     slack.NewTextBlockObject("plain_text", "Submit", false, false),
+		Blocks: slack.Blocks{
+			BlockSet: []slack.Block{
+				slack.NewInputBlock(
+					"target",
+					slack.NewTextBlockObject("plain_text", "抽選対象", false, false),
+					slack.NewOptionsSelectBlockElement(
+						"static_select",
+						slack.NewTextBlockObject("plain_text", "抽選対象", false, false),
+						"target",
+						h.selectElements(channelID)...,
+					),
+				),
+				slack.NewInputBlock(
+					"count",
+					slack.NewTextBlockObject("plain_text", "抽選人数", false, false),
+					slack.PlainTextInputBlockElement{
+						Type:         "plain_text_input",
+						ActionID:     "count",
+						Placeholder:  slack.NewTextBlockObject("plain_text", "抽選人数", false, false),
+						Multiline:    false,
+						InitialValue: "1",
+					},
+				),
+			},
+		},
+	}
+}
+
+func (h *handler) selectElements(channelID string) []*slack.OptionBlockObject {
+	// UserGroupから抽選するメニューを追加
+	groups, err := h.api.GetUserGroups()
+	if err != nil {
+		log.Print(err)
+		return []*slack.OptionBlockObject{
+			&slack.OptionBlockObject{
+				Text:  slack.NewTextBlockObject("plain_text", "このチャンネルのメンバーから", false, false),
+				Value: channelID,
+			},
+		}
+	}
+
+	options := make([]*slack.OptionBlockObject, 0, len(groups))
+
+	options = append(options, &slack.OptionBlockObject{
+		Text:  slack.NewTextBlockObject("plain_text", "このチャンネルのメンバーから", false, false),
+		Value: channelID,
+	})
+
+	for _, group := range groups {
+		options = append(options, &slack.OptionBlockObject{
+			Text:  slack.NewTextBlockObject("plain_text", group.Name, false, false),
+			Value: group.ID,
+		})
+	}
+	return options
+}
+
 func (h *handler) lottery(actionValue string, countValue string, channelID string) error {
 	var userIDs []string
 	var err error
 
 	log.Printf("value: %s", actionValue)
-	if actionValue == "channel" {
-		userIDs, err = h.api.GetUsersFromChannel(channelID)
-	} else {
+	userIDs, err = h.api.GetUsersFromChannel(actionValue)
+	if err != nil {
 		userIDs, err = h.api.GetUsersFromUserGroup(actionValue)
 	}
 
 	if err != nil {
-		log.Print(err)
 		return err
 	}
 
@@ -112,11 +198,11 @@ func (h *handler) lottery(actionValue string, countValue string, channelID strin
 	}
 
 	lotteriedUids := lotteryUsersFromUsers(userIDs, c)
-	pMsg := ""
+	us := make([]string, len(lotteriedUids))
 	for _, uid := range lotteriedUids {
-		pMsg += "<@" + uid + ">\n"
+		us = append(us, "<@"+uid+">\n")
 	}
-	pMsg += "が当選しました"
+	pMsg := strings.Join(us, "") + "が当選しました"
 	return h.api.PostMessage(channelID, pMsg)
 }
 
