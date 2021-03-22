@@ -58,9 +58,10 @@ func (h *handler) Handle(request events.APIGatewayProxyRequest) (events.APIGatew
 		values := view.State.Values
 		target := values["target"]["target"].SelectedOption.Value
 		count := values["count"]["count"].Value
+		ignoreUsers := values["ignoreUsers"]["ignoreUsers"].SelectedUsers
 
 		log.Println("count, terget, callbackID: ", count, target, view.CallbackID)
-		err := h.lottery(target, count, view.CallbackID)
+		err := h.lottery(target, count, view.CallbackID, ignoreUsers)
 		code := 200
 		if err != nil {
 			code = 400
@@ -144,6 +145,15 @@ func (h *handler) modalViewReqest(channelID string) slack.ModalViewRequest {
 						InitialValue: "1",
 					},
 				),
+				slack.NewInputBlock(
+					"ignoreUsers",
+					slack.NewTextBlockObject("plain_text", "除外するユーザー", false, false),
+					slack.NewOptionsGroupMultiSelectBlockElement(
+						"multi_static_select",
+						slack.NewTextBlockObject("plain_text", "試験中の機能です", false, false),
+						"ignoreUsers",
+					),
+				),
 			},
 		},
 	}
@@ -155,7 +165,7 @@ func (h *handler) selectElements(channelID string) []*slack.OptionBlockObject {
 	if err != nil {
 		log.Print(err)
 		return []*slack.OptionBlockObject{
-			&slack.OptionBlockObject{
+			{
 				Text:  slack.NewTextBlockObject("plain_text", "このチャンネルのメンバーから", false, false),
 				Value: channelID,
 			},
@@ -178,18 +188,24 @@ func (h *handler) selectElements(channelID string) []*slack.OptionBlockObject {
 	return options
 }
 
-func (h *handler) lottery(actionValue string, countValue string, channelID string) error {
-	var userIDs []string
-	var err error
-
-	log.Printf("value: %s", actionValue)
-	userIDs, err = h.api.GetUsersFromChannel(actionValue)
+func (h *handler) lottery(actionValue string, countValue string, channelID string, ignoreUsers []string) error {
+	userIDs, err := h.api.GetUsersFromChannel(actionValue)
 	if err != nil {
 		userIDs, err = h.api.GetUsersFromUserGroup(actionValue)
+		if err != nil {
+			return err
+		}
 	}
 
-	if err != nil {
-		return err
+	lotteryInfoText := "抽選範囲: " + actionValue + "\n除外ユーザー: \n"
+	for _, uid := range ignoreUsers {
+		lotteryInfoText += "  <@" + uid + ">\n"
+	}
+	lotteryInfoText += "\n"
+
+	userIDs = removeStrings(userIDs, ignoreUsers...)
+	if len(userIDs) == 0 {
+		return h.api.PostMessage(channelID, lotteryInfoText+"当選者はいませんでした")
 	}
 
 	c, err := strconv.Atoi(countValue)
@@ -202,7 +218,7 @@ func (h *handler) lottery(actionValue string, countValue string, channelID strin
 	for _, uid := range lotteriedUids {
 		us = append(us, "<@"+uid+">\n")
 	}
-	pMsg := strings.Join(us, "") + "が当選しました"
+	pMsg := lotteryInfoText + strings.Join(us, "") + "が当選しました"
 	return h.api.PostMessage(channelID, pMsg)
 }
 
@@ -228,4 +244,25 @@ func lotteryUsersFromUsers(userIDs []string, count int) []string {
 		userIDs[i], userIDs[j] = userIDs[j], userIDs[i]
 	}
 	return userIDs[:count]
+}
+
+func removeStrings(targetStrings []string, removeStrings ...string) []string {
+	m := make(map[string]bool, len(targetStrings))
+	for _, s := range targetStrings {
+		m[s] = true
+	}
+	for _, s := range removeStrings {
+		_, ok := m[s]
+		if ok {
+			m[s] = false
+		}
+	}
+
+	res := make([]string, 0, len(targetStrings))
+	for k, v := range m {
+		if v == true {
+			res = append(res, k)
+		}
+	}
+	return res
 }
