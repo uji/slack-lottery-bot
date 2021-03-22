@@ -1,25 +1,28 @@
-.PHONY: deps clean build
-
-deps:
-	go get -u ./...
-
 clean:
-	rm -rf ./select/select
-	rm -rf ./lottery/lottery
+	rm -rf ./dist
+	docker rmi slack-lottery-bot_cdk
 
 build:
-	GOOS=linux GOARCH=amd64 go build -o select/select ./select
-	GOOS=linux GOARCH=amd64 go build -o lottery/lottery ./lottery
+	mkdir -p ./dist/select
+	mkdir -p ./dist/lottery
+	GOOS=linux GOARCH=amd64 go build -o dist/select/bin ./select
+	GOOS=linux GOARCH=amd64 go build -o dist/lottery/bin ./lottery
+	zip -r ./dist/select.zip ./dist/select
+	zip -r ./dist/lottery.zip ./dist/lottery
+	rm -rf ./dist/select ./dist/lottery
 
-export:
-	export AWS_PROFILE=default
+deploy-by-docker:
+	docker-compose build --no-cache
+	make build
+	make up
+	docker-compose exec cdk npm run build
+	docker-compose exec cdk cdk synth
+	docker-compose exec cdk cdk bootstrap
+	docker-compose exec cdk cdk deploy --require-approval never
+	make down
 
-package:
-	sam package --template-file template.yaml --output-template-file output-template.yaml --s3-bucket slack-lottery-bot
+up:
+	docker-compose up -d
 
-deploy:
-	make package
-	sam deploy --template-file output-template.yaml --stack-name slack-lottery-bot --capabilities CAPABILITY_IAM \
-	--parameter-overrides "ParameterKey=VERIFICATIONTOKEN,ParameterValue=$(VERIFICATION_TOKEN) \
-	ParameterKey=BOTTOKEN,ParameterValue=$(BOT_TOKEN) \
-	ParameterKey=OAUTHTOKEN,ParameterValue=$(OAUTH_TOKEN)"
+down:
+	docker-compose down
