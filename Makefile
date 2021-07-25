@@ -1,25 +1,22 @@
 clean:
-	rm -rf ./dist
+	make down
 	docker rmi slack-lottery-bot_cdk
 
 build:
-	mkdir -p ./dist/select
-	mkdir -p ./dist/lottery
-	GOOS=linux GOARCH=amd64 go build -o dist/select/bin ./select
-	GOOS=linux GOARCH=amd64 go build -o dist/lottery/bin ./lottery
-	zip -r ./dist/select.zip ./dist/select
-	zip -r ./dist/lottery.zip ./dist/lottery
-	rm -rf ./dist/select ./dist/lottery
+	rm -rf ./dist
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o dist/select ./select
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o dist/lottery ./lottery
+
+docker-cp:
+	docker cp . slack-lottery-bot-cdk:/workdir
 
 deploy-by-docker:
-	docker-compose build --no-cache
 	make build
-	make up
+	make docker-cp
 	docker-compose exec cdk npm run build
 	docker-compose exec cdk cdk synth
 	docker-compose exec cdk cdk bootstrap
 	docker-compose exec cdk cdk deploy --require-approval never
-	make down
 
 up:
 	docker-compose up -d

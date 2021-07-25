@@ -58,7 +58,7 @@ func (h *handler) Handle(request events.APIGatewayProxyRequest) (events.APIGatew
 		values := view.State.Values
 		target := values["target"]["target"].SelectedOption.Value
 		count := values["count"]["count"].Value
-		ignoreUsers := values["ignoreUsers"]["ignoreUsers"].SelectedUsers
+		ignoreUsers := values["ignore-users"]["ignore-users"].SelectedUsers
 
 		log.Println("count, terget, callbackID: ", count, target, view.CallbackID)
 		err := h.lottery(target, count, view.CallbackID, ignoreUsers)
@@ -83,8 +83,7 @@ func (h *handler) Handle(request events.APIGatewayProxyRequest) (events.APIGatew
 		}
 
 		log.Print("select start TriggerID: ", message.TriggerID)
-		err = h.api.OpenView(message.TriggerID, h.modalViewReqest(message.Channel.ID))
-		if err != nil {
+		if err := h.api.OpenView(message.TriggerID, h.modalViewReqest(message.Channel.ID)); err != nil {
 			log.Print(err)
 			return events.APIGatewayProxyResponse{}, err
 		}
@@ -146,12 +145,12 @@ func (h *handler) modalViewReqest(channelID string) slack.ModalViewRequest {
 					},
 				),
 				slack.NewInputBlock(
-					"ignoreUsers",
+					"ignore-users",
 					slack.NewTextBlockObject("plain_text", "除外するユーザー", false, false),
-					slack.NewOptionsGroupMultiSelectBlockElement(
-						"multi_static_select",
+					slack.NewOptionsMultiSelectBlockElement(
+						slack.MultiOptTypeUser,
 						slack.NewTextBlockObject("plain_text", "試験中の機能です", false, false),
-						"ignoreUsers",
+						"ignore-users",
 					),
 				),
 			},
@@ -189,15 +188,21 @@ func (h *handler) selectElements(channelID string) []*slack.OptionBlockObject {
 }
 
 func (h *handler) lottery(actionValue string, countValue string, channelID string, ignoreUsers []string) error {
+	lotteryInfoText := "抽選範囲: "
+
 	userIDs, err := h.api.GetUsersFromChannel(actionValue)
 	if err != nil {
+		// actionValue is not channel id
 		userIDs, err = h.api.GetUsersFromUserGroup(actionValue)
 		if err != nil {
 			return err
 		}
+		lotteryInfoText += "<@" + actionValue + ">"
+	} else {
+		lotteryInfoText += "<#" + actionValue + ">"
 	}
 
-	lotteryInfoText := "抽選範囲: " + actionValue + "\n除外ユーザー: \n"
+	lotteryInfoText += "\n除外ユーザー: \n"
 	for _, uid := range ignoreUsers {
 		lotteryInfoText += "  <@" + uid + ">\n"
 	}
@@ -247,6 +252,11 @@ func lotteryUsersFromUsers(userIDs []string, count int) []string {
 }
 
 func removeStrings(targetStrings []string, removeStrings ...string) []string {
+	selectCount := len(targetStrings) - len(removeStrings)
+	if selectCount < 1 {
+		return []string{}
+	}
+
 	m := make(map[string]bool, len(targetStrings))
 	for _, s := range targetStrings {
 		m[s] = true
@@ -258,7 +268,7 @@ func removeStrings(targetStrings []string, removeStrings ...string) []string {
 		}
 	}
 
-	res := make([]string, 0, len(targetStrings))
+	res := make([]string, 0, selectCount)
 	for k, v := range m {
 		if v == true {
 			res = append(res, k)

@@ -8,8 +8,8 @@ export class LotteryStack extends cdk.Stack {
 
     const lotteryHandler = new lambda.Function(this, 'SlackLotteryBot-LotteryFunction', {
       runtime: lambda.Runtime.GO_1_X,
-      handler: 'SlackLotteryBot-LotteryHandler',
-      code: lambda.Code.fromAsset('./dist/lottery.zip'),
+      handler: 'lottery',
+      code: lambda.Code.fromAsset('./dist'),
       environment: {
         'BOTTOKEN': process.env.BOTTOKEN || '',
         'VERIFICATIONTOKEN': process.env.VERIFICATIONTOKEN || '',
@@ -19,8 +19,8 @@ export class LotteryStack extends cdk.Stack {
 
     const selectHandler = new lambda.Function(this, 'SlackLotteryBot-SelectFunction', {
       runtime: lambda.Runtime.GO_1_X,
-      handler: 'SlackLotteryBot-SelectHandler',
-      code: lambda.Code.fromAsset('./dist/select.zip'),
+      handler: 'select',
+      code: lambda.Code.fromAsset('./dist'),
       environment: {
         'BOTTOKEN': process.env.BOTTOKEN || '',
         'VERIFICATIONTOKEN': process.env.VERIFICATIONTOKEN || '',
