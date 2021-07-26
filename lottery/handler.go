@@ -144,15 +144,17 @@ func (h *handler) modalViewReqest(channelID string) slack.ModalViewRequest {
 						InitialValue: "1",
 					},
 				),
-				slack.NewInputBlock(
-					"ignore-users",
-					slack.NewTextBlockObject("plain_text", "除外するユーザー", false, false),
-					slack.NewOptionsMultiSelectBlockElement(
+				slack.InputBlock{
+					Type:     slack.MBTInput,
+					BlockID:  "ignore-users",
+					Label:    slack.NewTextBlockObject("plain_text", "除外するユーザー", false, false),
+					Optional: true,
+					Element: slack.NewOptionsMultiSelectBlockElement(
 						slack.MultiOptTypeUser,
 						slack.NewTextBlockObject("plain_text", "試験中の機能です", false, false),
 						"ignore-users",
 					),
-				),
+				},
 			},
 		},
 	}
@@ -188,8 +190,6 @@ func (h *handler) selectElements(channelID string) []*slack.OptionBlockObject {
 }
 
 func (h *handler) lottery(actionValue string, countValue string, channelID string, ignoreUsers []string) error {
-	lotteryInfoText := "抽選範囲: "
-
 	userIDs, err := h.api.GetUsersFromChannel(actionValue)
 	if err != nil {
 		// actionValue is not channel id
@@ -197,19 +197,12 @@ func (h *handler) lottery(actionValue string, countValue string, channelID strin
 		if err != nil {
 			return err
 		}
-		lotteryInfoText += "<@" + actionValue + ">"
-	} else {
-		lotteryInfoText += "<#" + actionValue + ">"
 	}
 
-	lotteryInfoText += "\n除外ユーザー: \n"
-	for _, uid := range ignoreUsers {
-		lotteryInfoText += "  <@" + uid + ">\n"
-	}
-	lotteryInfoText += "\n"
+	lotteryInfoText := ""
 
-	userIDs = removeStrings(userIDs, ignoreUsers...)
-	if len(userIDs) == 0 {
+	targetUserIDs := removeStrings(userIDs, ignoreUsers...)
+	if len(targetUserIDs) == 0 {
 		return h.api.PostMessage(channelID, lotteryInfoText+"当選者はいませんでした")
 	}
 
@@ -217,8 +210,11 @@ func (h *handler) lottery(actionValue string, countValue string, channelID strin
 	if err != nil {
 		c = 1
 	}
+	if c > len(targetUserIDs) {
+		c = len(targetUserIDs)
+	}
 
-	lotteriedUids := lotteryUsersFromUsers(userIDs, c)
+	lotteriedUids := lotteryUsersFromUsers(targetUserIDs, c)
 	us := make([]string, len(lotteriedUids))
 	for _, uid := range lotteriedUids {
 		us = append(us, "<@"+uid+">\n")
