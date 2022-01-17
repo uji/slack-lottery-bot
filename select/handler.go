@@ -25,12 +25,12 @@ func NewHandler(verificationToken string, botToken string, oauthToken string) Ha
 
 func (h *handler) Handle(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	reqBody := request.Body
+	log.Printf("request body: %#v", reqBody)
 	eventsAPIEvent, err := slackevents.ParseEvent(
 		json.RawMessage(reqBody),
 		slackevents.OptionVerifyToken(&slackevents.TokenComparator{VerificationToken: h.verificationToken}),
 	)
 	if err != nil {
-		log.Print(err)
 		return events.APIGatewayProxyResponse{}, err
 	}
 

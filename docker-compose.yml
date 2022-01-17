@@ -1,0 +1,19 @@
+version: '3'
+services:
+  cdk:
+    build: .
+    volumes:
+      - slack-lottery-bot.cdk:/workdir
+    container_name: slack-lottery-bot-cdk
+    tty: true
+    working_dir: /workdir
+    environment:
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+      BOTTOKEN: ${BOTTOKEN}
+      VERIFICATIONTOKEN: ${VERIFICATIONTOKEN}
+      OAUTHTOKEN: ${OAUTHTOKEN}
+      SIGNING_SECRET: ${SIGNING_SECRET}
+volumes:
+  slack-lottery-bot.cdk:
